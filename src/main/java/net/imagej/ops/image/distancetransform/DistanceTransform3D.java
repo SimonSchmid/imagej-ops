@@ -33,6 +33,9 @@ public class DistanceTransform3D<B extends BooleanType<B>, T extends RealType<T>
 	@Parameter
 	private ThreadService ts;
 
+	@Parameter(required = false)
+	private double[] calibration;
+
 	@SuppressWarnings("rawtypes")
 	private UnaryFunctionOp<FinalInterval, RandomAccessibleInterval> createOp;
 
@@ -53,6 +56,8 @@ public class DistanceTransform3D<B extends BooleanType<B>, T extends RealType<T>
 		es = ts.getExecutorService();
 		createOp = Functions.unary(ops(), CreateImgFromDimsAndType.class, RandomAccessibleInterval.class,
 				new FinalInterval(in()), new FloatType());
+		if (calibration == null)
+			calibration = new double[] { 1, 1, 1 };
 	}
 
 	@SuppressWarnings("unchecked")
@@ -70,7 +75,8 @@ public class DistanceTransform3D<B extends BooleanType<B>, T extends RealType<T>
 
 		// tempValues stores the integer values of the first phase, i.e. the
 		// first two scans
-		final int[][][] tempValues = new int[(int) in.dimension(0)][(int) out.dimension(1)][(int) out.dimension(2)];
+		final double[][][] tempValues = new double[(int) in.dimension(0)][(int) out.dimension(1)][(int) out
+				.dimension(2)];
 		// int[] tempValues = new int[(int) in.dimension(0) * (int)
 		// out.dimension(1) * (int) out.dimension(2)];
 
@@ -79,7 +85,7 @@ public class DistanceTransform3D<B extends BooleanType<B>, T extends RealType<T>
 
 		for (int z = 0; z < in.dimension(2); z++) {
 			for (int y = 0; y < in.dimension(1); y++) {
-				list.add(new Phase1Runnable3D<>(tempValues, in, y, z));
+				list.add(new Phase1Runnable3D<>(tempValues, in, y, z, calibration));
 			}
 		}
 
@@ -92,10 +98,11 @@ public class DistanceTransform3D<B extends BooleanType<B>, T extends RealType<T>
 		list.clear();
 
 		// second phase
-		final int[][][] tempValues_new = new int[(int) in.dimension(0)][(int) out.dimension(1)][(int) out.dimension(2)];
+		final double[][][] tempValues_new = new double[(int) in.dimension(0)][(int) out.dimension(1)][(int) out
+				.dimension(2)];
 		for (int z = 0; z < in.dimension(2); z++) {
 			for (int x = 0; x < in.dimension(0); x++) {
-				list.add(new Phase2Runnable3D<>(tempValues, tempValues_new, out, x, z));
+				list.add(new Phase2Runnable3D<>(tempValues, tempValues_new, out, x, z, calibration));
 			}
 		}
 
@@ -109,7 +116,7 @@ public class DistanceTransform3D<B extends BooleanType<B>, T extends RealType<T>
 		for (int x = 0; x < in.dimension(0); x++) {
 			for (int y = 0; y < in.dimension(1); y++) {
 
-				list.add(new Phase3Runnable3D<>(tempValues_new, out, x, y));
+				list.add(new Phase3Runnable3D<>(tempValues_new, out, x, y, calibration));
 			}
 		}
 
@@ -123,21 +130,24 @@ public class DistanceTransform3D<B extends BooleanType<B>, T extends RealType<T>
 
 class Phase1Runnable3D<B extends BooleanType<B>> implements Callable<Void> {
 
-	private final int[][][] tempValues;
+	private final double[][][] tempValues;
 	private final RandomAccess<B> raIn;
 	private final int y;
 	private final int z;
-	private final int infinite;
+	private final double infinite;
 	private final int width;
+	private final double[] calibration;
 
-	public Phase1Runnable3D(final int[][][] tempValues, final RandomAccessibleInterval<B> raIn, final int yPos,
-			final int zPos) {
+	public Phase1Runnable3D(final double[][][] tempValues, final RandomAccessibleInterval<B> raIn, final int yPos,
+			final int zPos, final double[] calibration) {
 		this.tempValues = tempValues;
 		this.raIn = raIn.randomAccess();
 		this.y = yPos;
 		this.z = zPos;
-		this.infinite = (int) (raIn.dimension(0) + raIn.dimension(1));
+		this.infinite = calibration[0] * raIn.dimension(0) + calibration[1] * raIn.dimension(1)
+				+ calibration[2] * raIn.dimension(2);
 		this.width = (int) raIn.dimension(0);
+		this.calibration = calibration;
 	}
 
 	@Override
@@ -156,13 +166,13 @@ class Phase1Runnable3D<B extends BooleanType<B>> implements Callable<Void> {
 			if (!raIn.get().get()) {
 				tempValues[x][y][z] = 0;
 			} else {
-				tempValues[x][y][z] = tempValues[x - 1][y][z] + 1;
+				tempValues[x][y][z] = tempValues[x - 1][y][z] + calibration[0];
 			}
 		}
 		// scan2
 		for (int x = width - 2; x >= 0; x--) {
 			if (tempValues[x + 1][y][z] < tempValues[x][y][z]) {
-				tempValues[x][y][z] = 1 + tempValues[x + 1][y][z];
+				tempValues[x][y][z] = calibration[0] + tempValues[x + 1][y][z];
 			}
 		}
 		return null;
@@ -172,29 +182,32 @@ class Phase1Runnable3D<B extends BooleanType<B>> implements Callable<Void> {
 
 class Phase2Runnable3D<T extends RealType<T>> implements Callable<Void> {
 
-	private final int[][][] tempValues;
-	private final int[][][] tempValues_new;
+	private final double[][][] tempValues;
+	private final double[][][] tempValues_new;
 	private final int xPos;
 	private final int zPos;
 	private final int height;
+	private final double[] calibration;
 
-	public Phase2Runnable3D(final int[][][] tempValues, final int[][][] tempValues_new,
-			final RandomAccessibleInterval<T> raOut, final int xPos, final int zPos) {
+	public Phase2Runnable3D(final double[][][] tempValues, final double[][][] tempValues_new,
+			final RandomAccessibleInterval<T> raOut, final int xPos, final int zPos, final double[] calibration) {
 		this.tempValues = tempValues;
 		this.tempValues_new = tempValues_new;
 		this.xPos = xPos;
 		this.zPos = zPos;
 		this.height = (int) raOut.dimension(1);
+		this.calibration = calibration;
 	}
 
 	// help function used from the algorithm to compute distances
-	private int distancefunc(final int x, final int i, final int raOutValue) {
-		return (x - i) * (x - i) + raOutValue * raOutValue;
+	private double distancefunc(final int x, final int i, final double raOutValue) {
+		return calibration[1] * calibration[1] * (x - i) * (x - i) + raOutValue * raOutValue;
 	}
 
 	// help function used from the algorithm
 	private double sep(final double i, final double u, final double w, final double v) {
-		return (u * u - i * i + w * w - v * v) / (2 * (u - i));
+		return (int) Math.round((u * u - i * i + ((w * w) / (calibration[1] * calibration[1]))
+				- ((v * v) / (calibration[1] * calibration[1]))) / (2 * (u - i)) - 0.49);
 	}
 
 	@Override
@@ -239,28 +252,32 @@ class Phase2Runnable3D<T extends RealType<T>> implements Callable<Void> {
 class Phase3Runnable3D<T extends RealType<T>> implements Callable<Void> {
 
 	private final RandomAccessibleInterval<T> raOut;
-	private final int[][][] tempValues;
+	private final double[][][] tempValues;
 	private final int xPos;
 	private final int yPos;
 	private final int deep;
+	private final double[] calibration;
 
-	public Phase3Runnable3D(final int[][][] tempValues, final RandomAccessibleInterval<T> raOut, final int xPos,
-			final int yPos) {
+	public Phase3Runnable3D(final double[][][] tempValues, final RandomAccessibleInterval<T> raOut, final int xPos,
+			final int yPos, final double[] calibration) {
 		this.tempValues = tempValues;
 		this.raOut = raOut;
 		this.xPos = xPos;
 		this.yPos = yPos;
 		this.deep = (int) raOut.dimension(2);
+		this.calibration = calibration;
 	}
 
 	// help function used from the algorithm to compute distances
-	private int distancefunc(final int x, final int i, final int raOutValue) {
-		return (x - i) * (x - i) + raOutValue;
+	private double distancefunc(final int x, final int i, final double raOutValue) {
+		return calibration[2] * calibration[2] * (x - i) * (x - i) + raOutValue;
 	}
 
 	// help function used from the algorithm
-	private int sep(final int i, final int u, final int w, final int v) {
-		return (u * u - i * i + w - v) / (2 * (u - i));
+	private int sep(final int i, final int u, final double w, final double v) {
+		return (int) Math.round(
+				(u * u - i * i + (w / (calibration[2] * calibration[2])) - (v / (calibration[2] * calibration[2])))
+						/ (2 * (u - i)) - 0.49);
 	}
 
 	@Override

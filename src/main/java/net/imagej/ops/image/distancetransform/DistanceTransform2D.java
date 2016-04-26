@@ -32,6 +32,9 @@ public class DistanceTransform2D<B extends BooleanType<B>, T extends RealType<T>
 
 	@Parameter
 	private ThreadService ts;
+	
+	@Parameter(required = false)
+    private double[] calibration;
 
 	@SuppressWarnings("rawtypes")
 	private UnaryFunctionOp<FinalInterval, RandomAccessibleInterval> createOp;
@@ -52,6 +55,8 @@ public class DistanceTransform2D<B extends BooleanType<B>, T extends RealType<T>
 		es = ts.getExecutorService();
 		createOp = Functions.unary(ops(), CreateImgFromDimsAndType.class, RandomAccessibleInterval.class,
 				new FinalInterval(in()), new FloatType());
+		if (calibration == null)
+            calibration = new double[] {1, 1};
 	}
 
 	@SuppressWarnings("unchecked")
@@ -69,13 +74,13 @@ public class DistanceTransform2D<B extends BooleanType<B>, T extends RealType<T>
 
 		// tempValues stores the integer values of the first phase, i.e. the
 		// first two scans
-		final int[][] tempValues = new int[(int) in.dimension(0)][(int) out.dimension(1)];
+		final double[][] tempValues = new double[(int) in.dimension(0)][(int) out.dimension(1)];
 
 		// first phase
 		final List<Callable<Void>> list = new ArrayList<>();
 
 		for (int y = 0; y < in.dimension(1); y++) {
-			list.add(new Phase1Runnable2D<>(tempValues, in, y));
+			list.add(new Phase1Runnable2D<>(tempValues, in, y, calibration));
 		}
 
 		try {
@@ -85,10 +90,10 @@ public class DistanceTransform2D<B extends BooleanType<B>, T extends RealType<T>
 		}
 
 		list.clear();
-
+		
 		// second phase
 		for (int x = 0; x < in.dimension(0); x++) {
-			list.add(new Phase2Runnable2D<>(tempValues, out, x));
+			list.add(new Phase2Runnable2D<>(tempValues, out, x, calibration));
 		}
 
 		try {
@@ -101,18 +106,20 @@ public class DistanceTransform2D<B extends BooleanType<B>, T extends RealType<T>
 
 class Phase1Runnable2D<B extends BooleanType<B>> implements Callable<Void> {
 
-	private final int[][] tempValues;
+	private final double[][] tempValues;
 	private final RandomAccess<B> raIn;
 	private final int y;
-	private final int infinite;
+	private final double infinite;
 	private final int width;
+	private final double[] calibration;
 
-	public Phase1Runnable2D(final int[][] tempValues, final RandomAccessibleInterval<B> raIn, final int yPos) {
+	public Phase1Runnable2D(final double[][] tempValues, final RandomAccessibleInterval<B> raIn, final int yPos, final double[] calibration) {
 		this.tempValues = tempValues;
 		this.raIn = raIn.randomAccess();
 		this.y = yPos;
-		this.infinite = (int) (raIn.dimension(0) + raIn.dimension(1));
+		this.infinite = calibration[0] * raIn.dimension(0) + calibration[1] * raIn.dimension(1);
 		this.width = (int) raIn.dimension(0);
+		this.calibration = calibration;
 	}
 
 	@Override
@@ -130,13 +137,13 @@ class Phase1Runnable2D<B extends BooleanType<B>> implements Callable<Void> {
 			if (!raIn.get().get()) {
 				tempValues[x][y] = 0;
 			} else {
-				tempValues[x][y] = tempValues[x - 1][y] + 1;
+				tempValues[x][y] = tempValues[x - 1][y] + calibration[0];
 			}
 		}
 		// scan2
 		for (int x = width - 2; x >= 0; x--) {
 			if (tempValues[x + 1][y] < tempValues[x][y]) {
-				tempValues[x][y] = 1 + tempValues[x + 1][y];
+				tempValues[x][y] = calibration[0] + tempValues[x + 1][y];
 			}
 
 		}
@@ -148,26 +155,29 @@ class Phase1Runnable2D<B extends BooleanType<B>> implements Callable<Void> {
 class Phase2Runnable2D<T extends RealType<T>> implements Callable<Void> {
 
 	private final RandomAccessibleInterval<T> raOut;
-	private final int[][] tempValues;
+	private final double[][] tempValues;
 	private final int xPos;
 	private final int height;
+	private final double[] calibration;
 
-	public Phase2Runnable2D(final int[][] tempValues, final RandomAccessibleInterval<T> raOut, final int xPos) {
+	public Phase2Runnable2D(final double[][] tempValues, final RandomAccessibleInterval<T> raOut, final int xPos, final double[] calibration) {
 		this.tempValues = tempValues;
 		this.raOut = raOut;
 		this.xPos = xPos;
 		this.height = (int) raOut.dimension(1);
+		this.calibration = calibration;
 	}
 
 	// help function used from the algorithm to compute distances
-	private int distancefunc(final int x, final int i, final int raOutValue) {
-		return (x - i) * (x - i) + raOutValue * raOutValue;
+	private double distancefunc(final int x, final int i, final double raOutValue) {
+		return calibration[1] * calibration[1] * (x - i) * (x - i) + raOutValue * raOutValue;
 	}
 
 	// help function used from the algorithm
-	private int sep(final int i, final int u, final int w, final int v) {
-		return (u * u - i * i + w * w - v * v) / (2 * (u - i));
-	}
+    private int sep(final int i, final int u, final double w, final double v) {
+            return (int) Math.round((u * u - i * i + ((w * w) / (calibration[1] * calibration[1])) - ((v * v) / (calibration[1] * calibration[1])))
+                            / (2 * (u - i)) - 0.49);
+    }
 
 	@Override
 	public Void call() throws Exception {

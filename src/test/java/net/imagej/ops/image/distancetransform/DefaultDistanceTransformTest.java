@@ -15,7 +15,7 @@ import net.imglib2.type.numeric.real.FloatType;
 
 public class DefaultDistanceTransformTest extends AbstractOpTest {
 
-	final static double EPSILON = 0.0001;
+	final static double EPSILON = 0.05;
 
 	@Test
 	public void test() {
@@ -23,13 +23,17 @@ public class DefaultDistanceTransformTest extends AbstractOpTest {
 		Img<BitType> in = ops.convert().bit(ops.create().img(new int[] { 20, 20, 5, 3 }));
 		generate4DImg(in);
 
+		Random random = new Random();
+		double[] calibration = new double[] { random.nextDouble() * 5, random.nextDouble() * 5, random.nextDouble() * 5,
+				random.nextDouble() * 5 };
+
 		// output of DT ops
 		@SuppressWarnings("unchecked")
 		RandomAccessibleInterval<FloatType> out = (RandomAccessibleInterval<FloatType>) ops
-				.run(DefaultDistanceTransform.class, in);
+				.run(DefaultDistanceTransform.class, null, in, calibration);
 
 		// assertEquals
-		compareResults(out, in);
+		compareResults(out, in, calibration);
 	}
 
 	/*
@@ -54,7 +58,8 @@ public class DefaultDistanceTransformTest extends AbstractOpTest {
 	 * "trivial" distance transform algorithm -> calculate distance to each
 	 * pixel and select the shortest
 	 */
-	private void compareResults(RandomAccessibleInterval<FloatType> out, RandomAccessibleInterval<BitType> in) {
+	private void compareResults(final RandomAccessibleInterval<FloatType> out,
+			final RandomAccessibleInterval<BitType> in, final double[] calibration) {
 		RandomAccess<FloatType> raOut = out.randomAccess();
 		RandomAccess<BitType> raIn = in.randomAccess();
 
@@ -67,15 +72,18 @@ public class DefaultDistanceTransformTest extends AbstractOpTest {
 						if (!raIn.get().get())
 							assertEquals(0, raOut.get().get(), EPSILON);
 						else {
-							float actualValue = in.dimension(0) * in.dimension(0) + in.dimension(1) * in.dimension(1)
+							double actualValue = in.dimension(0) * in.dimension(0) + in.dimension(1) * in.dimension(1)
 									+ in.dimension(2) * in.dimension(2) + in.dimension(3) * in.dimension(3);
 							for (int x = 0; x < in.dimension(0); x++) {
 								for (int y = 0; y < in.dimension(1); y++) {
 									for (int z = 0; z < in.dimension(2); z++) {
 										for (int w = 0; w < in.dimension(3); w++) {
 											raIn.setPosition(new int[] { x, y, z, w });
-											float dist = (x0 - x) * (x0 - x) + (y0 - y) * (y0 - y) + (z0 - z) * (z0 - z)
-													+ (w0 - w) * (w0 - w);
+											double dist = calibration[0] * calibration[0] * (x0 - x) * (x0 - x)
+													+ calibration[1] * calibration[1] * (y0 - y) * (y0 - y)
+													+ calibration[2] * calibration[2] * (z0 - z) * (z0 - z)
+													+ calibration[3] * calibration[3] * (w0 - w) * (w0 - w);
+
 											if ((!raIn.get().get()) && (dist < actualValue))
 												actualValue = dist;
 										}
