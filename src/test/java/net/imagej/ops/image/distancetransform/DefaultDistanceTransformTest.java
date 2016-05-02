@@ -19,21 +19,23 @@ public class DefaultDistanceTransformTest extends AbstractOpTest {
 
 	@Test
 	public void test() {
-		// create 4D image
-		Img<BitType> in = ops.convert().bit(ops.create().img(new int[] { 20, 20, 5, 3 }));
-		generate4DImg(in);
+		for (int i = 0; i < 1000; i++) {
+			// create 4D image
+			Img<BitType> in = ops.convert().bit(ops.create().img(new int[] { 20, 20, 5, 3 }));
+			generate4DImg(in);
 
-		Random random = new Random();
-		double[] calibration = new double[] { random.nextDouble() * 5, random.nextDouble() * 5, random.nextDouble() * 5,
-				random.nextDouble() * 5 };
+			Random random = new Random();
+			double[] calibration = new double[] { random.nextDouble() * 5, random.nextDouble() * 5,
+					random.nextDouble() * 5, random.nextDouble() * 5 };
 
-		// output of DT ops
-		@SuppressWarnings("unchecked")
-		RandomAccessibleInterval<FloatType> out = (RandomAccessibleInterval<FloatType>) ops
-				.run(DefaultDistanceTransform.class, null, in, calibration);
+			// output of DT ops
+			@SuppressWarnings("unchecked")
+			RandomAccessibleInterval<FloatType> out = (RandomAccessibleInterval<FloatType>) ops
+					.run(DefaultDistanceTransform.class, null, in, calibration);
 
-		// assertEquals
-		compareResults(out, in, calibration);
+			// assertEquals
+			compareResults(out, in, calibration);
+		}
 	}
 
 	/*

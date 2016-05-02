@@ -28,15 +28,12 @@ import org.scijava.thread.ThreadService;
  * @author Simon Schmid (University of Konstanz)
  */
 @Plugin(type = Ops.Image.DistanceTransform.class, priority = Priority.LAST_PRIORITY)
-public class DefaultDistanceTransform<B extends BooleanType<B>, T extends RealType<T>>
+public class DefaultDistanceTransform2<B extends BooleanType<B>, T extends RealType<T>>
 		extends AbstractUnaryHybridCF<RandomAccessibleInterval<B>, RandomAccessibleInterval<T>>
 		implements Ops.Image.DistanceTransform, Contingent {
 
 	@Parameter
 	private ThreadService ts;
-
-	@Parameter(required = false)
-	private double[] calibration;
 
 	@SuppressWarnings("rawtypes")
 	private UnaryFunctionOp<FinalInterval, RandomAccessibleInterval> createOp;
@@ -56,10 +53,6 @@ public class DefaultDistanceTransform<B extends BooleanType<B>, T extends RealTy
 		es = ts.getExecutorService();
 		createOp = Functions.unary(ops(), CreateImgFromDimsAndType.class, RandomAccessibleInterval.class,
 				new FinalInterval(in()), new FloatType());
-		if (calibration == null) {
-			calibration = new double[in().numDimensions()];
-			Arrays.fill(calibration, 1.0);
-		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -103,7 +96,7 @@ public class DefaultDistanceTransform<B extends BooleanType<B>, T extends RealTy
 			positions[i] = 0;
 		}
 		// stores the values calculated after each phase
-		final double[] actualValues = new double[numPoints];
+		final int[] actualValues = new int[numPoints];
 
 		// stores each Thread to execute
 		final List<Callable<Void>> list = new ArrayList<>();
@@ -112,12 +105,12 @@ public class DefaultDistanceTransform<B extends BooleanType<B>, T extends RealTy
 		 * initial phase calculates the first dimension
 		 */
 		int index = dimensSizes.length - 1;
-		list.add(new InitPhase<>(actualValues, in, dimensSizes, positions.clone(), calibration));
+		list.add(new InitPhase2<>(actualValues, in, dimensSizes, positions.clone()));
 		while (index > 0) {
 			if (positions[index] < dimensSizes[index] - 1) {
 				positions[index]++;
 				index = positions.length - 1;
-				list.add(new InitPhase<>(actualValues, in, dimensSizes, positions.clone(), calibration));
+				list.add(new InitPhase2<>(actualValues, in, dimensSizes, positions.clone()));
 			} else {
 				positions[index] = 0;
 				index--;
@@ -144,7 +137,7 @@ public class DefaultDistanceTransform<B extends BooleanType<B>, T extends RealTy
 			Arrays.fill(positions, 0);
 			positions[actualDimension] = -1;
 			index = positions.length - 1;
-			list.add(new NextPhase<>(actualValues, dimensSizes, positions.clone(), actualDimension, calibration));
+			list.add(new NextPhase2<>(actualValues, dimensSizes, positions.clone(), actualDimension));
 			while (index >= 0) {
 				if (positions[index] == -1) {
 					index--;
@@ -152,8 +145,7 @@ public class DefaultDistanceTransform<B extends BooleanType<B>, T extends RealTy
 					if (positions[index] < dimensSizes[index] - 1) {
 						positions[index]++;
 						index = positions.length - 1;
-						list.add(new NextPhase<>(actualValues, dimensSizes, positions.clone(), actualDimension,
-								calibration));
+						list.add(new NextPhase2<>(actualValues, dimensSizes, positions.clone(), actualDimension));
 					} else {
 						positions[index] = 0;
 						index--;
@@ -192,25 +184,23 @@ public class DefaultDistanceTransform<B extends BooleanType<B>, T extends RealTy
 	}
 }
 
-class InitPhase<B extends BooleanType<B>, T extends RealType<T>> implements Callable<Void> {
-	private final double[] actualValues;
+class InitPhase2<B extends BooleanType<B>, T extends RealType<T>> implements Callable<Void> {
+	private final int[] actualValues;
 	private final RandomAccess<B> raIn;
 	private final int infinite;
 	private final int[] dimensSizes;
 	private final int[] positions;
-	private final double[] calibration;
 
-	public InitPhase(final double[] actualValues, final RandomAccessibleInterval<B> raIn, final int[] dimensSizes,
-			final int[] positions, final double[] calibration) {
+	public InitPhase2(final int[] actualValues, final RandomAccessibleInterval<B> raIn, final int[] dimensSizes,
+			final int[] positions) {
 		this.actualValues = actualValues;
 		this.raIn = raIn.randomAccess();
 		int inf = 0;
 		for (int i = 0; i < dimensSizes.length; i++)
-			inf += calibration[i] * calibration[i] * dimensSizes[i] * dimensSizes[i];
+			inf += dimensSizes[i];
 		this.infinite = inf;
 		this.dimensSizes = dimensSizes;
 		this.positions = positions;
-		this.calibration = calibration;
 	}
 
 	/*
@@ -246,8 +236,7 @@ class InitPhase<B extends BooleanType<B>, T extends RealType<T>> implements Call
 			} else {
 				final int[] temp = positions.clone();
 				temp[0] = x - 1;
-				actualValues[getIndex(positions, dimensSizes)] = actualValues[getIndex(temp, dimensSizes)]
-						+ calibration[0];
+				actualValues[getIndex(positions, dimensSizes)] = actualValues[getIndex(temp, dimensSizes)] + 1;
 			}
 		}
 		// scan2
@@ -256,8 +245,7 @@ class InitPhase<B extends BooleanType<B>, T extends RealType<T>> implements Call
 			final int[] temp = positions.clone();
 			temp[0] = x + 1;
 			if (actualValues[getIndex(temp, dimensSizes)] < actualValues[getIndex(positions, dimensSizes)]) {
-				actualValues[getIndex(positions, dimensSizes)] = calibration[0]
-						+ actualValues[getIndex(temp, dimensSizes)];
+				actualValues[getIndex(positions, dimensSizes)] = 1 + actualValues[getIndex(temp, dimensSizes)];
 			}
 		}
 		return null;
@@ -265,22 +253,20 @@ class InitPhase<B extends BooleanType<B>, T extends RealType<T>> implements Call
 
 }
 
-class NextPhase<T extends RealType<T>> implements Callable<Void> {
-	private final double[] actualValues;
+class NextPhase2<T extends RealType<T>> implements Callable<Void> {
+	private final int[] actualValues;
 	private final int[] dimensSizes;
 	private final int[] positions;
 	private final int[] positions2;
 	private final int actualDimension;
-	private final double[] calibration;
 
-	public NextPhase(final double[] actualValues, final int[] dimensSizes, final int[] positions,
-			final int actualDimension, final double[] calibration) {
+	public NextPhase2(final int[] actualValues, final int[] dimensSizes, final int[] positions,
+			final int actualDimension) {
 		this.actualValues = actualValues;
 		this.dimensSizes = dimensSizes;
 		this.positions = positions;
 		this.positions2 = positions.clone();
 		this.actualDimension = actualDimension;
-		this.calibration = calibration;
 	}
 
 	/*
@@ -299,14 +285,13 @@ class NextPhase<T extends RealType<T>> implements Callable<Void> {
 	}
 
 	// help function
-	private double distancefunc(final int x, final int i, final double raOutValue) {
-		return calibration[actualDimension] * calibration[actualDimension] * (x - i) * (x - i) + raOutValue;
+	private int distancefunc(final int x, final int i, final int raOutValue) {
+		return (x - i) * (x - i) + raOutValue;
 	}
 
 	// help function
-	private int sep(final int i, final int u, final double w, final double v) {
-		return (int) Math.floor(Math.nextUp((u * u - i * i + (w / (calibration[actualDimension] * calibration[actualDimension]))
-				- (v / (calibration[actualDimension] * calibration[actualDimension]))) / (2 * (u - i))));
+	private int sep(final int i, final int u, final int w, final int v) {
+		return (u * u - i * i + w - v) / (2 * (u - i));
 	}
 
 	@Override
@@ -345,7 +330,7 @@ class NextPhase<T extends RealType<T>> implements Callable<Void> {
 		}
 
 		// scan 4
-		final double[] newValues = new double[dimensSizes[actualDimension]];
+		final int[] newValues = new int[dimensSizes[actualDimension]];
 		for (int u = dimensSizes[actualDimension] - 1; u >= 0; u--) {
 			positions[actualDimension] = s[q];
 			newValues[u] = distancefunc(u, s[q], actualValues[getIndex(positions, dimensSizes)]);

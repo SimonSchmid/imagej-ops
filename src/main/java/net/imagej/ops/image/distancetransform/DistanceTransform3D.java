@@ -77,8 +77,6 @@ public class DistanceTransform3D<B extends BooleanType<B>, T extends RealType<T>
 		// first two scans
 		final double[][][] tempValues = new double[(int) in.dimension(0)][(int) out.dimension(1)][(int) out
 				.dimension(2)];
-		// int[] tempValues = new int[(int) in.dimension(0) * (int)
-		// out.dimension(1) * (int) out.dimension(2)];
 
 		// first phase
 		final List<Callable<Void>> list = new ArrayList<>();
@@ -206,8 +204,8 @@ class Phase2Runnable3D<T extends RealType<T>> implements Callable<Void> {
 
 	// help function used from the algorithm
 	private double sep(final double i, final double u, final double w, final double v) {
-		return (int) Math.round((u * u - i * i + ((w * w) / (calibration[1] * calibration[1]))
-				- ((v * v) / (calibration[1] * calibration[1]))) / (2 * (u - i)) - 0.49);
+		return (int) Math.round(Math.nextUp((u * u - i * i + ((w * w) / (calibration[1] * calibration[1]))
+				- ((v * v) / (calibration[1] * calibration[1]))) / (2 * (u - i))));
 	}
 
 	@Override
@@ -275,9 +273,8 @@ class Phase3Runnable3D<T extends RealType<T>> implements Callable<Void> {
 
 	// help function used from the algorithm
 	private int sep(final int i, final int u, final double w, final double v) {
-		return (int) Math.round(
-				(u * u - i * i + (w / (calibration[2] * calibration[2])) - (v / (calibration[2] * calibration[2])))
-						/ (2 * (u - i)) - 0.49);
+		return (int) Math.floor(Math.nextUp((u * u - i * i + (w / (calibration[2] * calibration[2]))
+				- (v / (calibration[2] * calibration[2]))) / (2 * (u - i))));
 	}
 
 	@Override
