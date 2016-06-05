@@ -6,6 +6,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 
 import org.scijava.plugin.Parameter;
+import org.scijava.plugin.Plugin;
 import org.scijava.thread.ThreadService;
 
 import net.imagej.ops.Contingent;
@@ -34,6 +35,7 @@ import net.imglib2.view.composite.RealComposite;
 /**
  * @author Simon Schmid (University of Konstanz)
  */
+@Plugin(type = Ops.HoG.HistogramOfOrientedGradients.class)
 public class HistogramOfOrientedGradients2D<T extends RealType<T>>
 		extends AbstractUnaryHybridCF<RandomAccessibleInterval<T>, RandomAccessibleInterval<T>>
 		implements Ops.HoG.HistogramOfOrientedGradients, Contingent {
@@ -109,7 +111,7 @@ public class HistogramOfOrientedGradients2D<T extends RealType<T>>
 		}
 
 		// stores each Thread to execute
-		final List<Callable<Void>> listCallables = new ArrayList<Callable<Void>>();
+		final List<Callable<Void>> listCallables = new ArrayList<>();
 
 		// compute descriptor (default 3x3, i.e. 9 channels: one channel for
 		// each bin)
@@ -166,7 +168,7 @@ public class HistogramOfOrientedGradients2D<T extends RealType<T>>
 						long[] newPos = new long[3];
 						newPos[0] = posNeighbor[0];
 						newPos[1] = posNeighbor[1];
-						newPos[2] = (int) raAngles.get().getRealDouble() / ((int) 360 / numBins);
+						newPos[2] = (int) raAngles.get().getRealDouble() / (360 / numBins);
 						raOut.setPosition(newPos);
 						raOut.get().setReal(raOut.get().getRealDouble() + raMagnitudes.get().getRealDouble());
 					}
