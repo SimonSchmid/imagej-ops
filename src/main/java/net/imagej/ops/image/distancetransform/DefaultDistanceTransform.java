@@ -334,12 +334,12 @@ class NextPhase<T extends RealType<T>> implements Callable<Void> {
 			} else {
 				positions[actualDimension] = s[q];
 				positions2[actualDimension] = u;
-				final double w = 1 + sep(s[q], u, actualValues[getIndex(positions2, dimensSizes)],
+				final int w = 1 + sep(s[q], u, actualValues[getIndex(positions2, dimensSizes)],
 						actualValues[getIndex(positions, dimensSizes)]);
 				if (w < dimensSizes[actualDimension]) {
 					q++;
 					s[q] = u;
-					t[q] = (int) w;
+					t[q] = w;
 				}
 			}
 		}

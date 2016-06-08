@@ -15,15 +15,17 @@ import net.imglib2.type.numeric.real.FloatType;
 
 public class DistanceTransform2DTest extends AbstractOpTest {
 
-	final static double EPSILON = 0.05;
+	final static double EPSILON = 0.1;
 
 	@Test
 	public void test() {
+		for (int i = 0; i < 10; i++) {
 		// create 2D image
 		Img<BitType> in = ops.convert().bit(ops.create().img(new int[] { 40, 40 }));
 		generate2DImg(in);
 		
-		double[] calibration = new double[]{1, 5};
+		Random random = new Random();
+		double[] calibration = new double[] { random.nextDouble() * 5, random.nextDouble() * 5};
 
 		// output of DT ops
 		@SuppressWarnings("unchecked")
@@ -32,6 +34,7 @@ public class DistanceTransform2DTest extends AbstractOpTest {
 
 		// assertEquals
 		compareResults(out, in, calibration);
+		}
 	}
 
 	/*

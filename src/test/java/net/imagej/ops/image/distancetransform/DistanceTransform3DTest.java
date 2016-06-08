@@ -15,11 +15,11 @@ import net.imglib2.type.numeric.real.FloatType;
 
 public class DistanceTransform3DTest extends AbstractOpTest {
 
-	final static double EPSILON = 0.05;
+	private static final double EPSILON = 0.05;
 
 	@Test
 	public void test() {
-		for (int i = 0; i < 1000; i++) {
+		for (int i = 0; i < 10; i++) {
 			// create 3D image
 			Img<BitType> in = ops.convert().bit(ops.create().img(new int[] { 30, 30, 5 }));
 			generate3DImg(in);
@@ -27,7 +27,7 @@ public class DistanceTransform3DTest extends AbstractOpTest {
 			Random random = new Random();
 			double[] calibration = new double[] { random.nextDouble() * 5, random.nextDouble() * 5,
 					random.nextDouble() * 5 };
-
+			calibration = new double[] { 1, 1, 1 };
 			// output of DT ops
 			@SuppressWarnings("unchecked")
 			RandomAccessibleInterval<FloatType> out = (RandomAccessibleInterval<FloatType>) ops
@@ -62,7 +62,6 @@ public class DistanceTransform3DTest extends AbstractOpTest {
 			double[] calibration) {
 		RandomAccess<FloatType> raOut = out.randomAccess();
 		RandomAccess<BitType> raIn = in.randomAccess();
-		int fail = 0;
 
 		for (int x0 = 0; x0 < in.dimension(0); x0++) {
 			for (int y0 = 0; y0 < in.dimension(1); y0++) {
@@ -70,9 +69,7 @@ public class DistanceTransform3DTest extends AbstractOpTest {
 					raIn.setPosition(new int[] { x0, y0, z0 });
 					raOut.setPosition(new int[] { x0, y0, z0 });
 					if (!raIn.get().get()) {
-						// assertEquals(0, raOut.get().get(), EPSILON);
-						if (raOut.get().get() != 0)
-							fail++;
+						assertEquals(0, raOut.get().get(), EPSILON);
 					} else {
 						double actualValue = in.dimension(0) * in.dimension(0) + in.dimension(1) * in.dimension(1)
 								+ in.dimension(2) * in.dimension(2);
@@ -88,15 +85,10 @@ public class DistanceTransform3DTest extends AbstractOpTest {
 								}
 							}
 						}
-						// assertEquals(Math.sqrt(actualValue),
-						// raOut.get().get(), EPSILON);
-						if (Math.abs(raOut.get().get() - Math.sqrt(actualValue)) > EPSILON)
-							fail++;
+						assertEquals(Math.sqrt(actualValue), raOut.get().get(), EPSILON);
 					}
 				}
 			}
 		}
-		if (fail > 0)
-			System.out.println(fail);
 	}
 }

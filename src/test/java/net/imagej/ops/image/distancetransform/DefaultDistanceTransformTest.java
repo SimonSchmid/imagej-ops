@@ -15,7 +15,7 @@ import net.imglib2.type.numeric.real.FloatType;
 
 public class DefaultDistanceTransformTest extends AbstractOpTest {
 
-	final static double EPSILON = 0.05;
+	private static final double EPSILON = 0.05;
 
 	@Test
 	public void test() {

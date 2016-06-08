@@ -203,7 +203,7 @@ class Phase2Runnable3D<T extends RealType<T>> implements Callable<Void> {
 	}
 
 	// help function used from the algorithm
-	private double sep(final double i, final double u, final double w, final double v) {
+	private int sep(final int i, final int u, final double w, final double v) {
 		return (int) Math.round(Math.nextUp((u * u - i * i + ((w * w) / (calibration[1] * calibration[1]))
 				- ((v * v) / (calibration[1] * calibration[1]))) / (2 * (u - i))));
 	}
@@ -226,11 +226,11 @@ class Phase2Runnable3D<T extends RealType<T>> implements Callable<Void> {
 				q = 0;
 				s[0] = u;
 			} else {
-				final double w = 1 + sep(s[q], u, tempValues[xPos][u][zPos], tempValues[xPos][s[q]][zPos]);
+				final int w = 1 + sep(s[q], u, tempValues[xPos][u][zPos], tempValues[xPos][s[q]][zPos]);
 				if (w < height) {
 					q++;
 					s[q] = u;
-					t[q] = (int) w;
+					t[q] = w;
 				}
 			}
 		}
