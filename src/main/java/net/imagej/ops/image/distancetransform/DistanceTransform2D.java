@@ -32,9 +32,9 @@ public class DistanceTransform2D<B extends BooleanType<B>, T extends RealType<T>
 
 	@Parameter
 	private ThreadService ts;
-	
+
 	@Parameter(required = false)
-    private double[] calibration;
+	private double[] calibration;
 
 	@SuppressWarnings("rawtypes")
 	private UnaryFunctionOp<FinalInterval, RandomAccessibleInterval> createOp;
@@ -56,7 +56,7 @@ public class DistanceTransform2D<B extends BooleanType<B>, T extends RealType<T>
 		createOp = Functions.unary(ops(), CreateImgFromDimsAndType.class, RandomAccessibleInterval.class,
 				new FinalInterval(in()), new FloatType());
 		if (calibration == null)
-            calibration = new double[] {1, 1};
+			calibration = new double[] { 1, 1 };
 	}
 
 	@SuppressWarnings("unchecked")
@@ -90,7 +90,7 @@ public class DistanceTransform2D<B extends BooleanType<B>, T extends RealType<T>
 		}
 
 		list.clear();
-		
+
 		// second phase
 		for (int x = 0; x < in.dimension(0); x++) {
 			list.add(new Phase2Runnable2D<>(tempValues, out, x, calibration));
@@ -113,7 +113,8 @@ class Phase1Runnable2D<B extends BooleanType<B>> implements Callable<Void> {
 	private final int width;
 	private final double[] calibration;
 
-	public Phase1Runnable2D(final double[][] tempValues, final RandomAccessibleInterval<B> raIn, final int yPos, final double[] calibration) {
+	public Phase1Runnable2D(final double[][] tempValues, final RandomAccessibleInterval<B> raIn, final int yPos,
+			final double[] calibration) {
 		this.tempValues = tempValues;
 		this.raIn = raIn.randomAccess();
 		this.y = yPos;
@@ -160,7 +161,8 @@ class Phase2Runnable2D<T extends RealType<T>> implements Callable<Void> {
 	private final int height;
 	private final double[] calibration;
 
-	public Phase2Runnable2D(final double[][] tempValues, final RandomAccessibleInterval<T> raOut, final int xPos, final double[] calibration) {
+	public Phase2Runnable2D(final double[][] tempValues, final RandomAccessibleInterval<T> raOut, final int xPos,
+			final double[] calibration) {
 		this.tempValues = tempValues;
 		this.raOut = raOut;
 		this.xPos = xPos;
@@ -174,10 +176,10 @@ class Phase2Runnable2D<T extends RealType<T>> implements Callable<Void> {
 	}
 
 	// help function used from the algorithm
-    private int sep(final int i, final int u, final double w, final double v) {
-            return (int) Math.round((u * u - i * i + ((w * w) / (calibration[1] * calibration[1])) - ((v * v) / (calibration[1] * calibration[1])))
-                            / (2 * (u - i)) - 0.49);
-    }
+	private int sep(final int i, final int u, final double w, final double v) {
+		return (int) Math.round(Math.nextUp((u * u - i * i + ((w * w) / (calibration[1] * calibration[1]))
+				- ((v * v) / (calibration[1] * calibration[1]))) / (2 * (u - i)) - 0.49));
+	}
 
 	@Override
 	public Void call() throws Exception {
