@@ -305,8 +305,9 @@ class NextPhase<T extends RealType<T>> implements Callable<Void> {
 
 	// help function
 	private int sep(final int i, final int u, final double w, final double v) {
-		return (int) Math.floor(Math.nextUp((u * u - i * i + (w / (calibration[actualDimension] * calibration[actualDimension]))
-				- (v / (calibration[actualDimension] * calibration[actualDimension]))) / (2 * (u - i))));
+		return (int) Math
+				.floor(Math.nextUp((u * u - i * i + (w / (calibration[actualDimension] * calibration[actualDimension]))
+						- (v / (calibration[actualDimension] * calibration[actualDimension]))) / (2 * (u - i))));
 	}
 
 	@Override
@@ -359,5 +360,4 @@ class NextPhase<T extends RealType<T>> implements Callable<Void> {
 		}
 		return null;
 	}
-
 }

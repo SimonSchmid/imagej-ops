@@ -62,7 +62,7 @@ public class DistanceTransform3DTest extends AbstractOpTest {
 			double[] calibration) {
 		RandomAccess<FloatType> raOut = out.randomAccess();
 		RandomAccess<BitType> raIn = in.randomAccess();
-
+		int fail = 0;
 		for (int x0 = 0; x0 < in.dimension(0); x0++) {
 			for (int y0 = 0; y0 < in.dimension(1); y0++) {
 				for (int z0 = 0; z0 < in.dimension(2); z0++) {
@@ -70,6 +70,8 @@ public class DistanceTransform3DTest extends AbstractOpTest {
 					raOut.setPosition(new int[] { x0, y0, z0 });
 					if (!raIn.get().get()) {
 						assertEquals(0, raOut.get().get(), EPSILON);
+						if (Double.compare(0, raOut.get().get()) != 0)
+							fail++;
 					} else {
 						double actualValue = in.dimension(0) * in.dimension(0) + in.dimension(1) * in.dimension(1)
 								+ in.dimension(2) * in.dimension(2);
@@ -85,11 +87,14 @@ public class DistanceTransform3DTest extends AbstractOpTest {
 								}
 							}
 						}
+						if (Math.abs((Math.sqrt(actualValue) - raOut.get().get())) > EPSILON)
+							fail++;
 						// assertEquals(Math.sqrt(actualValue),
 						// raOut.get().get(), EPSILON);
 					}
 				}
 			}
 		}
+		System.out.println(fail);
 	}
 }
