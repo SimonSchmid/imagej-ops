@@ -47,6 +47,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.util.IntervalIndexer;
 
 import org.scijava.Priority;
 import org.scijava.plugin.Parameter;
@@ -95,21 +96,6 @@ public class DefaultDistanceTransform<B extends BooleanType<B>, T extends RealTy
 	@Override
 	public RandomAccessibleInterval<T> createOutput(final RandomAccessibleInterval<B> in) {
 		return createOp.compute1(new FinalInterval(in));
-	}
-
-	/*
-	 * all values are stored in a 1D array this function computes the index in
-	 * the array for a multidimensional position
-	 */
-	private int getIndex(final int[] positions, final int[] dimensSizes) {
-		int index = 0;
-		for (int i = 0; i < positions.length; i++) {
-			int temp = 1;
-			for (int j = 0; j < i; j++)
-				temp *= dimensSizes[j];
-			index += temp * positions[i];
-		}
-		return index;
 	}
 
 	/*
@@ -205,14 +191,14 @@ public class DefaultDistanceTransform<B extends BooleanType<B>, T extends RealTy
 		Arrays.fill(positions, 0);
 		final RandomAccess<T> raOut = out.randomAccess();
 		raOut.setPosition(positions);
-		raOut.get().setReal(Math.sqrt(actualValues[getIndex(positions, dimensSizes)]));
+		raOut.get().setReal(Math.sqrt(actualValues[IntervalIndexer.positionToIndex(positions, dimensSizes)]));
 		index = dimensSizes.length - 1;
 		while (index >= 0) {
 			if (positions[index] < dimensSizes[index] - 1) {
 				positions[index]++;
 				index = positions.length - 1;
 				raOut.setPosition(positions);
-				raOut.get().setReal(Math.sqrt(actualValues[getIndex(positions, dimensSizes)]));
+				raOut.get().setReal(Math.sqrt(actualValues[IntervalIndexer.positionToIndex(positions, dimensSizes)]));
 			} else {
 				positions[index] = 0;
 				index--;
@@ -242,41 +228,27 @@ class InitPhase<B extends BooleanType<B>, T extends RealType<T>> implements Call
 		this.calibration = calibration;
 	}
 
-	/*
-	 * all values are stored in a 1D array this function computes the index in
-	 * the array for a multidimensional position
-	 */
-	private int getIndex(final int[] pos, final int[] dim) {
-		int index = 0;
-		for (int i = 0; i < pos.length; i++) {
-			int temp = 1;
-			for (int j = 0; j < i; j++)
-				temp *= dim[j];
-			index += temp * pos[i];
-		}
-		return index;
-	}
-
 	@Override
 	public Void call() throws Exception {
 		// scan1
 		positions[0] = 0;
 		raIn.setPosition(positions);
 		if (!raIn.get().get()) {
-			actualValues[getIndex(positions, dimensSizes)] = 0;
+			actualValues[IntervalIndexer.positionToIndex(positions, dimensSizes)] = 0;
 		} else {
-			actualValues[getIndex(positions, dimensSizes)] = infinite;
+			actualValues[IntervalIndexer.positionToIndex(positions, dimensSizes)] = infinite;
 		}
 		for (int x = 1; x < dimensSizes[0]; x++) {
 			positions[0] = x;
 			raIn.setPosition(positions);
 			if (!raIn.get().get()) {
-				actualValues[getIndex(positions, dimensSizes)] = 0;
+				actualValues[IntervalIndexer.positionToIndex(positions, dimensSizes)] = 0;
 			} else {
 				final int[] temp = positions.clone();
 				temp[0] = x - 1;
-				actualValues[getIndex(positions, dimensSizes)] = actualValues[getIndex(temp, dimensSizes)]
-						+ calibration[0];
+				actualValues[IntervalIndexer.positionToIndex(positions,
+						dimensSizes)] = actualValues[IntervalIndexer.positionToIndex(temp, dimensSizes)]
+								+ calibration[0];
 			}
 		}
 		// scan2
@@ -284,9 +256,10 @@ class InitPhase<B extends BooleanType<B>, T extends RealType<T>> implements Call
 			positions[0] = x;
 			final int[] temp = positions.clone();
 			temp[0] = x + 1;
-			if (actualValues[getIndex(temp, dimensSizes)] < actualValues[getIndex(positions, dimensSizes)]) {
-				actualValues[getIndex(positions, dimensSizes)] = calibration[0]
-						+ actualValues[getIndex(temp, dimensSizes)];
+			if (actualValues[IntervalIndexer.positionToIndex(temp, dimensSizes)] < actualValues[IntervalIndexer
+					.positionToIndex(positions, dimensSizes)]) {
+				actualValues[IntervalIndexer.positionToIndex(positions, dimensSizes)] = calibration[0]
+						+ actualValues[IntervalIndexer.positionToIndex(temp, dimensSizes)];
 			}
 		}
 		return null;
@@ -310,21 +283,6 @@ class NextPhase<T extends RealType<T>> implements Callable<Void> {
 		this.positions2 = positions.clone();
 		this.actualDimension = actualDimension;
 		this.calibration = calibration;
-	}
-
-	/*
-	 * all values are stored in a 1D array this function computes the index in
-	 * the array for a multidimensional position
-	 */
-	private int getIndex(final int[] pos, final int[] dim) {
-		int index = 0;
-		for (int i = 0; i < pos.length; i++) {
-			int temp = 1;
-			for (int j = 0; j < i; j++)
-				temp *= dim[j];
-			index += temp * pos[i];
-		}
-		return index;
 	}
 
 	// help function
@@ -351,9 +309,9 @@ class NextPhase<T extends RealType<T>> implements Callable<Void> {
 		for (int u = 1; u < dimensSizes[actualDimension]; u++) {
 			positions[actualDimension] = s[q];
 			positions2[actualDimension] = u;
-			while ((q >= 0)
-					&& (distancefunc(t[q], s[q], actualValues[getIndex(positions, dimensSizes)]) > distancefunc(t[q], u,
-							actualValues[getIndex(positions2, dimensSizes)]))) {
+			while ((q >= 0) && (distancefunc(t[q], s[q],
+					actualValues[IntervalIndexer.positionToIndex(positions, dimensSizes)]) > distancefunc(t[q], u,
+							actualValues[IntervalIndexer.positionToIndex(positions2, dimensSizes)]))) {
 				q--;
 				if (q >= 0)
 					positions[actualDimension] = s[q];
@@ -364,8 +322,8 @@ class NextPhase<T extends RealType<T>> implements Callable<Void> {
 			} else {
 				positions[actualDimension] = s[q];
 				positions2[actualDimension] = u;
-				final int w = 1 + sep(s[q], u, actualValues[getIndex(positions2, dimensSizes)],
-						actualValues[getIndex(positions, dimensSizes)]);
+				final int w = 1 + sep(s[q], u, actualValues[IntervalIndexer.positionToIndex(positions2, dimensSizes)],
+						actualValues[IntervalIndexer.positionToIndex(positions, dimensSizes)]);
 				if (w < dimensSizes[actualDimension]) {
 					q++;
 					s[q] = u;
@@ -378,14 +336,14 @@ class NextPhase<T extends RealType<T>> implements Callable<Void> {
 		final double[] newValues = new double[dimensSizes[actualDimension]];
 		for (int u = dimensSizes[actualDimension] - 1; u >= 0; u--) {
 			positions[actualDimension] = s[q];
-			newValues[u] = distancefunc(u, s[q], actualValues[getIndex(positions, dimensSizes)]);
+			newValues[u] = distancefunc(u, s[q], actualValues[IntervalIndexer.positionToIndex(positions, dimensSizes)]);
 			if (u == t[q]) {
 				q--;
 			}
 		}
 		for (int u = dimensSizes[actualDimension] - 1; u >= 0; u--) {
 			positions[actualDimension] = u;
-			actualValues[getIndex(positions, dimensSizes)] = newValues[u];
+			actualValues[IntervalIndexer.positionToIndex(positions, dimensSizes)] = newValues[u];
 		}
 		return null;
 	}

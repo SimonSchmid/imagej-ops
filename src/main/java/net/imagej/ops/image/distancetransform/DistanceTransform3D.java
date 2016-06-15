@@ -301,7 +301,7 @@ class Phase3Runnable3D<T extends RealType<T>> implements Callable<Void> {
 	// help function used from the algorithm
 	private int sep(final int i, final int u, final double w, final double v) {
 		return (int) Math.floor(Math.nextUp(
-				(u * u - i * i + (w / (calibration[1] * calibration[1])) - (v / (calibration[1] * calibration[1])))
+				(u * u - i * i + (w / (calibration[2] * calibration[2])) - (v / (calibration[2] * calibration[2])))
 						/ (2 * (u - i))));
 	}
 
