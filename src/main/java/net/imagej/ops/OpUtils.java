@@ -31,6 +31,7 @@
 package net.imagej.ops;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.List;
 
@@ -56,6 +57,24 @@ public final class OpUtils {
 	}
 
 	// -- Utility methods --
+
+	public static Type type(final Object arg) {
+		// CTR TODO Generalize this to a SciJava TypeService.
+		if (arg instanceof GenericTyped) {
+			// NB: Object knows its generic type.
+			return ((GenericTyped) arg).getType();
+		}
+		return arg.getClass();
+	}
+
+	public static String typeName(final Object arg) {
+		// CTR TODO Generalize this to a SciJava TypeService.
+		if (arg instanceof GenericTyped) {
+			// NB: Object knows its generic type.
+			return ((GenericTyped) arg).getType().toString();
+		}
+		return arg.getClass().getSimpleName();
+	}
 
 	public static Object[] args(final Object[] latter, final Object... former) {
 		final Object[] result = new Object[former.length + latter.length];

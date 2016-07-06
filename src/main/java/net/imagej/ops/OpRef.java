@@ -199,11 +199,7 @@ public class OpRef<OP extends Op> {
 		for (Object arg : args) {
 			if (first) first = false;
 			else sb.append(", ");
-			if (arg.getClass() == Class.class) {
-				// special typed null placeholder
-				sb.append(((Class<?>) arg).getSimpleName());
-			}
-			else sb.append(arg.getClass().getSimpleName());
+			sb.append(OpUtils.typeName(arg));
 
 		}
 		sb.append(")");

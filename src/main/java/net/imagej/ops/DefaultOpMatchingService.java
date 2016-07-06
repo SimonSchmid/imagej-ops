@@ -612,10 +612,12 @@ public class DefaultOpMatchingService extends AbstractService implements
 
 	/** Helper method of {@link #canAssign}. */
 	private boolean canConvert(final Object arg, final Type type) {
-		if (isMatchingClass(arg, type)) {
-			// NB: Class argument for matching, to help differentiate op signatures.
-			return true;
-		}
+		// org.scijava.type package
+		// TypeService
+		// get rid of GenericUtils in favor of TypeService
+		// ConvertService: think harder about how and when generics are appropriate
+		// - List<String> -> ArrayList<? extends Number>
+		// - 
 		return convertService.supports(arg, type);
 	}
 
@@ -633,17 +635,7 @@ public class DefaultOpMatchingService extends AbstractService implements
 
 	/** Helper method of {@link #assign}. */
 	private Object convert(final Object arg, final Type type) {
-		if (isMatchingClass(arg, type)) {
-			// NB: Class argument for matching; fill with null.
-			return null;
-		}
 		return convertService.convert(arg, type);
-	}
-
-	/** Determines whether the argument is a matching class instance. */
-	private boolean isMatchingClass(final Object arg, final Type type) {
-		return arg instanceof Class && convertService.supports((Class<?>) arg,
-			type);
 	}
 
 	// -- Deprecated methods --

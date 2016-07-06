@@ -44,7 +44,12 @@ import org.scijava.util.ConversionUtils;
  * A "typed null" which knows its generic type, and can generate proxy objects
  * implementing that type's interfaces, with customizable behavior per interface
  * method via callbacks.
- * 
+ * <p>
+ * The term "nil" was chosen, despite lots of possibility for confusion with
+ * related paradigms such as the Scala language, because it is very short while
+ * loosely meaning the same thing as {@code null}, {@code None}, etc.
+ * </p>
+ *
  * @author Curtis Rueden
  */
 public abstract class Nil<T> implements GenericTyped, GenericProxy<T>,
@@ -52,9 +57,50 @@ public abstract class Nil<T> implements GenericTyped, GenericProxy<T>,
 {
 
 	/** Generic type of the object. */
-	private TypeToken<T> typeToken = new TypeToken<T>(getClass()) {
-		// NB: No implementation needed.
-	};
+	private TypeToken<?> typeToken;
+
+	/** An object which holds any method callbacks. */
+	private Object callbacks;
+
+	public Nil() {
+		typeToken = new TypeToken<T>(getClass()) {};
+		callbacks = this;
+	}
+
+	public Nil(final Object callbacks) {
+		typeToken = new TypeToken<T>(getClass()) {};
+		this.callbacks = callbacks;
+	}
+
+	private Nil(final Type type) {
+		typeToken = TypeToken.of(type);
+		callbacks = this;
+	}
+
+	private Nil(final Type type, final Object callbacks) {
+		typeToken = TypeToken.of(type);
+		this.callbacks = callbacks;
+	}
+
+	// -- Static utility methods --
+
+	/**
+	 * Gets a {@link Nil} of the given {@link Type}, with no extra method
+	 * callbacks.
+	 */
+	public static Nil<?> of(final Type type) {
+		return new Nil<Object>(type) {};
+	}
+
+	// -- Nil methods --
+
+	/**
+	 * Gets a {@link Nil} of the given {@link Type}, with the same extra method
+	 * callbacks as this {@link Nil} instance.
+	 */
+	public Nil<?> as(final Type type) {
+		return new Nil<Object>(type, this) {};
+	}
 
 	// -- GenericTyped methods --
 
@@ -75,14 +121,15 @@ public abstract class Nil<T> implements GenericTyped, GenericProxy<T>,
 		final ClassLoader loader = Thread.currentThread().getContextClassLoader();
 
 		// extract the generic type's interfaces
-		final Set<Class<? super T>> ifaceSet = //
-			typeToken.getTypes().interfaces().rawTypes();
+		final Set<?> ifaceSet = typeToken.getTypes().interfaces().rawTypes();
 		final boolean appendGT = !ifaceSet.contains(GenericTyped.class);
 		final int ifaceCount = ifaceSet.size() + (appendGT ? 1 : 0);
 		final Class<?>[] interfaces = new Class<?>[ifaceCount];
 		ifaceSet.toArray(interfaces);
 		if (appendGT) interfaces[ifaceCount - 1] = GenericTyped.class;
 
+		// NB: Technically, this cast is not safe, because T might not be
+		// an interface, and thus might not be one of the proxy's types.
 		@SuppressWarnings("unchecked")
 		final T proxy = (T) Proxy.newProxyInstance(loader, interfaces, this);
 		return proxy;
@@ -98,7 +145,7 @@ public abstract class Nil<T> implements GenericTyped, GenericProxy<T>,
 			// Look for a Nil subclass method of the same signature.
 			final Method m = getClass().getMethod(method.getName(),
 				method.getParameterTypes());
-			return m.invoke(Nil.super, args);
+			return m.invoke(callbacks, args);
 		}
 		catch (final NoSuchMethodException exc) {
 			// NB: Default behavior is to do nothing and return null.

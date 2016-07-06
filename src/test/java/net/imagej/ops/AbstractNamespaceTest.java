@@ -263,12 +263,14 @@ public abstract class AbstractNamespaceTest extends AbstractOpTest {
 	private boolean checkOpImpl(final Method method, final String qName,
 		final Class<? extends Op> opType, final OpCoverSet coverSet)
 	{
-		// TODO: Type matching needs to be type<->type instead of class<->type.
-		// That is, the "special class placeholder" also needs to work with Type.
-		// Then we can pass Types here instead of Class instances.
-		// final Object[] argTypes = method.getGenericParameterTypes();
-		final Object[] argTypes = method.getParameterTypes();
-		final OpRef<Op> ref = OpRef.create(qName, argTypes);
+		// Create a generically typed null placeholder for each method argument.
+		final Type[] argTypes = method.getGenericParameterTypes();
+		final Object[] args = new Object[argTypes.length];
+		for (int i = 0; i < args.length; i++) {
+			args[i] = Nil.of(argTypes[i]);
+		}
+
+		final OpRef<Op> ref = OpRef.create(qName, args);
 		final OpInfo info = ops.info(opType);
 		final OpCandidate<Op> candidate = new OpCandidate<>(ops, ref, info);
 
@@ -308,10 +310,12 @@ public abstract class AbstractNamespaceTest extends AbstractOpTest {
 
 	private boolean typeMatches(final Object arg, final Class<?> type) {
 		if (arg == null) return true;
-		// NB: Handle special typed null placeholder.
-		final Class<?> argType =
-			arg instanceof Class ? ((Class<?>) arg) : arg.getClass();
-		return argType == type;
+		if (arg instanceof GenericTyped) {
+			// NB: Object knows its generic type!
+			final Type argType = ((GenericTyped) arg).getType();
+			return GenericUtils.getClasses(argType).contains(type);
+		}
+		return arg.getClass() == type;
 	}
 
 	private boolean outputTypesMatch(final Type returnType,
