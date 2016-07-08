@@ -31,14 +31,14 @@ package net.imagej.ops.image.distancetransform;
 
 import java.util.Random;
 
+import org.junit.Test;
+
 import net.imagej.ops.AbstractOpTest;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.Img;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.real.FloatType;
-
-import org.junit.Test;
 
 /**
  * @author Simon Schmid (University of Konstanz)
@@ -49,7 +49,7 @@ public class DefaultDistanceTransformTest extends AbstractOpTest {
 
 	@Test
 	public void test() {
-		for (int i = 0; i < 30000; i++) {
+		for (int i = 0; i < 100; i++) {
 			// create 4D image
 			Img<BitType> in = ops.convert().bit(ops.create().img(new int[] { 20, 20, 5, 3 }));
 			generate4DImg(in);
